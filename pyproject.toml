@@ -1,0 +1,26 @@
+[project]
+name = "cse291a"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "<=3.13, >=3.10"
+dependencies = [
+    "faiss-cpu",
+    "numpy",
+    "pandas",
+    "sentence-transformers",
+    "tree-sitter",
+    "tree-sitter-languages",
+    "rich",
+    "boto3",
+    "pyarrow",
+    "pypdf"
+]
+
+[dependency-groups]
+dev = [
+    "jupyter"
+]
+
+[tool.uv]
+default-groups = ["dev"]
