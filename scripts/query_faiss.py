@@ -18,9 +18,9 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 try:
-    from scripts.generate_embeddings import get_titan_embedding  
+    from generate_embeddings import get_titan_embedding  
 except ImportError as exc:  
-    raise SystemExit("Failed to import bedrock.get_titan_embedding; run from project root.") from exc
+    raise SystemExit("Failed to import get_titan_embedding; run from project root.") from exc
 
 
 @dataclass
