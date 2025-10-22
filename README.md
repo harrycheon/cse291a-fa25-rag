@@ -18,12 +18,13 @@ source .venv/bin/activate
 ```
 
 ### 2. Configure AWS Credentials
-
 ```bash
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
 export AWS_SESSION_TOKEN=your_session_token  # if using temporary credentials
 ```
+
+If you want these variables to persist either (1) add the environment variables to your shell configs or (2) install and setup [`aws-cli`](https://github.com/aws/aws-cli).
 
 ## Usage
 
