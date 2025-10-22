@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from html.parser import HTMLParser
@@ -26,9 +27,18 @@ from pypdf.errors import PdfReadError
 
 
 DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/117.0 Safari/537.36"
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
+DEFAULT_HEADERS = {
+    "User-Agent": DEFAULT_USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "DNT": "1",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+}
 PDF_MIME_TYPES = {"application/pdf", "application/x-pdf"}
 SUPPORTED_FILE_EXTS = {".pdf", ".txt", ".text", ".md", ".html", ".htm"}
 
@@ -126,31 +136,57 @@ def _extract_text_from_html(data: bytes, charset: str | None) -> str:
     return text or html
 
 
-def parse_document_from_url(url: str, *, timeout: float = 20.0) -> ParsedDocument:
-    """Download a URL and return extracted text plus content metadata."""
-    request = Request(url, headers={"User-Agent": DEFAULT_USER_AGENT})
-    with urlopen(request, timeout=timeout) as response:
-        raw_bytes = response.read()
-        headers = response.headers
-        base_type = None
-        charset = None
-        if headers:
-            base_type = getattr(headers, "get_content_type", lambda: None)()
-            charset = getattr(headers, "get_content_charset", lambda: None)()
-    is_pdf = _looks_like_pdf(url, base_type, raw_bytes)
-    if is_pdf:
-        text = _extract_text_from_pdf(raw_bytes)
-    else:
-        text = _extract_text_from_html(raw_bytes, charset)
-    if not text.strip() and not is_pdf and _looks_like_pdf(url, None, raw_bytes):
-        is_pdf = True
-        text = _extract_text_from_pdf(raw_bytes)
-    return ParsedDocument(
-        url=url,
-        content_type=base_type,
-        text=text,
-        is_pdf=is_pdf,
-    )
+def parse_document_from_url(url: str, *, timeout: float = 30.0, retries: int = 3) -> ParsedDocument:
+    """Download a URL and return extracted text plus content metadata.
+    
+    Args:
+        url: The URL to download
+        timeout: Request timeout in seconds
+        retries: Number of retry attempts for failed requests
+        
+    Returns:
+        ParsedDocument with extracted text and metadata
+    """
+    last_exception = None
+    
+    for attempt in range(retries):
+        try:
+            # Add delay between retries (except first attempt)
+            if attempt > 0:
+                delay = 2 ** attempt  # Exponential backoff: 2, 4, 8 seconds
+                time.sleep(delay)
+                
+            request = Request(url, headers=DEFAULT_HEADERS)
+            with urlopen(request, timeout=timeout) as response:
+                raw_bytes = response.read()
+                headers = response.headers
+                base_type = None
+                charset = None
+                if headers:
+                    base_type = getattr(headers, "get_content_type", lambda: None)()
+                    charset = getattr(headers, "get_content_charset", lambda: None)()
+                    
+            is_pdf = _looks_like_pdf(url, base_type, raw_bytes)
+            if is_pdf:
+                text = _extract_text_from_pdf(raw_bytes)
+            else:
+                text = _extract_text_from_html(raw_bytes, charset)
+            if not text.strip() and not is_pdf and _looks_like_pdf(url, None, raw_bytes):
+                is_pdf = True
+                text = _extract_text_from_pdf(raw_bytes)
+            return ParsedDocument(
+                url=url,
+                content_type=base_type,
+                text=text,
+                is_pdf=is_pdf,
+            )
+        except Exception as e:
+            last_exception = e
+            if attempt < retries - 1:
+                print(f"[RETRY {attempt + 1}/{retries}] {url}: {e}", file=sys.stderr)
+                continue
+            # If all retries failed, raise the last exception
+            raise last_exception
 
 
 def parse_document_from_file(file_path: Path) -> ParsedDocument:
@@ -511,6 +547,10 @@ def main() -> None:
 
     success = 0
     for idx, (kind, payload) in enumerate(tasks, start=1):
+        # Add a small delay between requests to be polite to servers
+        if idx > 1 and kind == "url":
+            time.sleep(1)
+            
         doc_id = None
         if args.doc_id_prefix:
             doc_id = f"{args.doc_id_prefix}-{idx:04d}"

@@ -70,3 +70,13 @@ For each document, three files are generated:
 **AWS credentials expired**: Re-export your session credentials
 
 **Import error**: Ensure you're running from the project root directory
+
+**403/401 Forbidden errors**: Some sites block scrapers. The script now includes:
+- More realistic browser headers
+- Automatic retries with exponential backoff (3 attempts)
+- Rate limiting between requests
+
+For persistently blocked sites, download the HTML/PDF manually and use:
+```bash
+python scripts/generate_embeddings.py --file-dir /path/to/downloaded/files --out-dir results
+```
