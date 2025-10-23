@@ -1,0 +1,14 @@
+{
+  "doc_id": "7df3d4f7ac4a",
+  "source_url": "/Users/shibatakatsuie/cse291a-fa25-rag/data/7.pdf",
+  "content_type": "application/pdf",
+  "is_pdf": true,
+  "model_id": "amazon.titan-embed-text-v2:0",
+  "model_revision": "0",
+  "normalize": true,
+  "dim": 1024,
+  "chunks": 15,
+  "chunk_size": 256,
+  "chunk_overlap": 50,
+  "created_at": "2025-10-23T21:37:36.201747"
+}
