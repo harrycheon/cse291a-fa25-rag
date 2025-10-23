@@ -1,0 +1,14 @@
+{
+  "doc_id": "alphabet-0001",
+  "source_url": "/Users/yixinhuang/Desktop/school_stuff/UCSD/fall_2025/cse_291a/cse291a-fa25-rag/data/raw_docs/alphabet/doc_0001.pdf",
+  "content_type": "application/pdf",
+  "is_pdf": true,
+  "model_id": "amazon.titan-embed-text-v2:0",
+  "model_revision": "0",
+  "normalize": true,
+  "dim": 1024,
+  "chunks": 102,
+  "chunk_size": 256,
+  "chunk_overlap": 50,
+  "created_at": "2025-10-23T21:21:06.320497"
+}
