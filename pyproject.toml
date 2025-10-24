@@ -8,7 +8,6 @@ dependencies = [
     "faiss-cpu",
     "numpy",
     "pandas",
-    "sentence-transformers",
     "tree-sitter",
     "tree-sitter-languages",
     "rich",
