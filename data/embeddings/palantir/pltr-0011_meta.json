@@ -1,0 +1,14 @@
+{
+  "doc_id": "pltr-0011",
+  "source_url": "/Users/harrycheon/Desktop/palantir/palantir-ir-q3-earningscalldate.html",
+  "content_type": "text/html",
+  "is_pdf": false,
+  "model_id": "amazon.titan-embed-text-v2:0",
+  "model_revision": "0",
+  "normalize": true,
+  "dim": 1024,
+  "chunks": 1,
+  "chunk_size": 256,
+  "chunk_overlap": 50,
+  "created_at": "2025-10-24T06:03:05.210643"
+}
