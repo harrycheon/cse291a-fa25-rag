@@ -1,0 +1,14 @@
+{
+  "doc_id": "fb6f823c1b33",
+  "source_url": "/Users/inanxu/GitHub/cse291a-fa25-rag/data/htmls/Nvidia set for $260 billion price swing after earnings, options indicate _ Reuters.html",
+  "content_type": "text/html",
+  "is_pdf": false,
+  "model_id": "amazon.titan-embed-text-v2:0",
+  "model_revision": "0",
+  "normalize": true,
+  "dim": 1024,
+  "chunks": 6,
+  "chunk_size": 256,
+  "chunk_overlap": 50,
+  "created_at": "2025-10-24T01:22:39.017333"
+}

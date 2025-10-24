@@ -1,0 +1,14 @@
+{
+  "doc_id": "5a8d4f0913d0",
+  "source_url": "/Users/inanxu/GitHub/cse291a-fa25-rag/data/htmls/5 Biggest Takeaways From the Nvidia Q2 Earnings Call - Business Insider.html",
+  "content_type": "text/html",
+  "is_pdf": false,
+  "model_id": "amazon.titan-embed-text-v2:0",
+  "model_revision": "0",
+  "normalize": true,
+  "dim": 1024,
+  "chunks": 7,
+  "chunk_size": 256,
+  "chunk_overlap": 50,
+  "created_at": "2025-10-24T01:21:57.447070"
+}
