@@ -1,0 +1,11 @@
+company,query,f1_score,precision,recall,mean_score,num_retrieved,num_relevant
+alphabet,How is Alphabet doing financially?,0.7372881355932204,0.75,0.7250000000000001,0.7250000000000001,4,3
+alphabet,How has Alphabet's partnership helped it to grow financially?,0.0,0.0,0.05,0.05,5,0
+doordash,"What are the revenue, total orders and adjusted EPS for Q2 2025, and the forward guidance provided for Q3 2025?",0.8636363636363636,1.0,0.76,0.76,5,5
+doordash,Summarize the annual shareholders voting results.,0.5684210526315789,0.6,0.5399999999999999,0.5399999999999999,5,3
+palantir,What are the carbon emissions trends of the company?,0.9873417721518987,1.0,0.975,0.975,4,4
+palantir,Which companies did Palantir partner with?,0.0,0.0,0.02,0.02,5,0
+qualcomm,Why is Qualcomm shifting automotive module production to India?,0.5454545454545454,0.5,0.6,0.6,2,1
+qualcomm,Why might Qualcomm's valuation be considered compelling?,0.624,0.6,0.65,0.65,5,3
+nvidia,Is NVIDIA growth on par with market expectations? Support this with concrete financial evidence.,0.0,0.0,0.0,0.0,5,0
+nvidia,"Is the company overexposed to risk in its current position of cash and financial portfolio? What poses the greatest risk, if any?",0.7688311688311688,0.8,0.74,0.74,5,4
