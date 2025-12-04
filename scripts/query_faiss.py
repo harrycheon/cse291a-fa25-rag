@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator, Sequence
 
+import boto3
 import faiss
 import numpy as np
 import pandas as pd
@@ -129,6 +130,168 @@ def _prepare_query_vector(
     return vector
 
 
+def rerank_with_bedrock(
+    query: str,
+    chunks: list[str],
+    model_id: str = "amazon.rerank-v1:0",
+    region: str = "us-west-2",
+    top_n: int = 5,
+) -> list[tuple[int, float]]:
+    """Rerank chunks using AWS Bedrock Rerank API.
+
+    Args:
+        query: The search query
+        chunks: List of text chunks to rerank
+        model_id: Bedrock reranker model ID. Options:
+                  - "amazon.rerank-v1:0" (available in us-west-2, ca-central-1, eu-central-1, ap-northeast-1)
+                  - "cohere.rerank-v3-5:0" (also available in us-east-1)
+        region: AWS region (must match where model is available)
+        top_n: Number of top results to return
+
+    Returns:
+        List of (original_index, relevance_score) tuples, sorted by relevance descending
+    """
+    if not chunks:
+        return []
+
+    client = boto3.client("bedrock-agent-runtime", region_name=region)
+
+    # Format chunks as sources for the API
+    sources = [
+        {
+            "inlineDocumentSource": {
+                "textDocument": {"text": chunk},
+                "type": "TEXT"
+            },
+            "type": "INLINE"
+        }
+        for chunk in chunks
+    ]
+
+    response = client.rerank(
+        queries=[{
+            "textQuery": {"text": query},
+            "type": "TEXT"
+        }],
+        rerankingConfiguration={
+            "bedrockRerankingConfiguration": {
+                "modelConfiguration": {
+                    "modelArn": f"arn:aws:bedrock:{region}::foundation-model/{model_id}"
+                },
+                "numberOfResults": min(top_n, len(chunks))
+            },
+            "type": "BEDROCK_RERANKING_MODEL"
+        },
+        sources=sources
+    )
+
+    # Extract and return results as (original_index, score) tuples
+    results = [
+        (item["index"], item["relevanceScore"])
+        for item in response["results"]
+    ]
+
+    return results
+
+
+def search_with_rerank(
+    query: str,
+    collections: list[Collection],
+    initial_k: int = 20,
+    final_k: int = 5,
+    model_id: str = "amazon.titan-embed-text-v2:0",
+    rerank_model_id: str = "amazon.rerank-v1:0",
+    region: str = "us-west-2",
+    normalize: bool = True,
+    use_reranking: bool = True,
+) -> list[dict]:
+    """Two-stage retrieval: FAISS candidate retrieval + Bedrock reranking.
+
+    Args:
+        query: Search query
+        collections: List of Collection objects containing FAISS indices
+        initial_k: Number of candidates to retrieve from FAISS (Stage 1)
+        final_k: Number of final results after reranking (Stage 2)
+        model_id: Embedding model ID for query encoding
+        rerank_model_id: Bedrock reranker model ID
+        region: AWS region
+        normalize: Whether to normalize embeddings
+        use_reranking: If False, skip reranking (for A/B comparison)
+
+    Returns:
+        List of result dicts with keys: chunk_idx, text, collection, score, source_url
+    """
+    # Get embedding dimension from first collection
+    expected_dim = collections[0].index.d
+
+    # Encode query
+    query_vec = _prepare_query_vector(
+        query,
+        index_dim=expected_dim,
+        model_id=model_id,
+        region=region,
+        normalize=normalize,
+    )
+
+    # Stage 1: FAISS retrieval
+    candidates = []
+    for collection in collections:
+        k = min(initial_k, collection.index.ntotal)
+        if k == 0:
+            continue
+        distances, indices = collection.index.search(query_vec, k)
+        for score, idx in zip(distances[0], indices[0]):
+            if idx < 0 or idx >= len(collection.dataframe):
+                continue
+            row = collection.dataframe.iloc[idx]
+            if collection.meta:
+                source_url = row.get("source_url", collection.meta.get("source_url", "unknown"))
+            else:
+                source_url = row.get("source_url", "unknown")
+            candidates.append({
+                "chunk_idx": int(idx),
+                "text": str(row.get("text", "")),
+                "collection": collection.name,
+                "faiss_score": float(score),
+                "source_url": source_url,
+                "doc_id": row.get("doc_id", "unknown"),
+                "chunk_id": row.get("chunk_id", "unknown"),
+            })
+
+    if not candidates:
+        return []
+
+    # Sort by FAISS score and take top initial_k across all collections
+    candidates.sort(key=lambda x: x["faiss_score"], reverse=True)
+    candidates = candidates[:initial_k]
+
+    # Stage 2: Reranking (if enabled)
+    if use_reranking and candidates:
+        chunk_texts = [c["text"] for c in candidates]
+        reranked = rerank_with_bedrock(
+            query=query,
+            chunks=chunk_texts,
+            model_id=rerank_model_id,
+            region=region,
+            top_n=final_k,
+        )
+
+        # Build final results from reranked indices
+        final_results = []
+        for orig_idx, rerank_score in reranked:
+            result = candidates[orig_idx].copy()
+            result["rerank_score"] = rerank_score
+            result["score"] = rerank_score  # Use rerank score as primary
+            final_results.append(result)
+
+        return final_results
+    else:
+        # No reranking - just return top final_k by FAISS score
+        for c in candidates:
+            c["score"] = c["faiss_score"]
+        return candidates[:final_k]
+
+
 def _iter_queries(args: argparse.Namespace) -> Iterator[str]:
     """Yield query strings from CLI flags, stdin, or an interactive prompt."""
     if args.query:
@@ -214,6 +377,22 @@ def main() -> None:
         action="store_true",
         help="Disable L2 normalization before querying (not recommended).",
     )
+    parser.add_argument(
+        "--no-rerank",
+        action="store_true",
+        help="Disable reranking (use FAISS scores only, for baseline comparison)",
+    )
+    parser.add_argument(
+        "--initial-k",
+        type=int,
+        default=20,
+        help="Number of candidates to retrieve from FAISS before reranking.",
+    )
+    parser.add_argument(
+        "--rerank-model",
+        default="amazon.rerank-v1:0",
+        help="Bedrock reranker model ID. Options: amazon.rerank-v1:0, cohere.rerank-v3-5:0",
+    )
     args = parser.parse_args()
 
     collections: list[Collection] = []
@@ -248,40 +427,41 @@ def main() -> None:
         if not query:
             continue
         try:
-            query_vec = _prepare_query_vector(
-                query,
-                index_dim=expected_dim,
+            # Use two-stage retrieval with reranking
+            results = search_with_rerank(
+                query=query,
+                collections=collections,
+                initial_k=args.initial_k,
+                final_k=args.top_k,
                 model_id=args.model_id,
+                rerank_model_id=args.rerank_model,
                 region=args.region,
                 normalize=normalize,
+                use_reranking=not args.no_rerank,
             )
         except Exception as exc:
-            print(f"[ERROR] Embedding query failed: {exc}", file=sys.stderr)
+            print(f"[ERROR] Query failed: {exc}", file=sys.stderr)
             continue
-        aggregated: list[tuple[float, int, Collection]] = []
-        for collection in collections:
-            distances, indices = collection.index.search(query_vec, args.top_k)
-            for score, idx in zip(distances[0], indices[0]):
-                if idx < 0 or idx >= len(collection.dataframe):
-                    continue
-                aggregated.append((float(score), int(idx), collection))
-        if not aggregated:
+
+        if not results:
             print(f"\nQuery: {query}\n  No results.", flush=True)
             continue
-        aggregated.sort(key=lambda item: item[0], reverse=True)
-        limited = aggregated[: args.top_k]
+
         print(f"\nQuery: {query}")
-        for rank, (score, idx, collection) in enumerate(limited, start=1):
-            row = collection.dataframe.iloc[idx]
-            preview = _preview_text(str(row.get("text", "")), args.preview_chars)
-            doc_id = row.get("doc_id", "n/a")
-            chunk_id = row.get("chunk_id", "n/a")
-            if collection.meta:
-                source_url = row.get("source_url", collection.meta.get("source_url"))
+        for rank, result in enumerate(results, start=1):
+            preview = _preview_text(result["text"], args.preview_chars)
+            rerank_score = result.get("rerank_score")
+            faiss_score = result.get("faiss_score")
+
+            # Format scores based on whether reranking was used
+            if rerank_score is not None:
+                score_str = f"rerank={rerank_score:.4f} faiss={faiss_score:.4f}"
             else:
-                source_url = row.get("source_url")
+                score_str = f"faiss={faiss_score:.4f}"
+
             print(
-                f"  {rank}. score={score:.4f} doc_id={doc_id} chunk={chunk_id} collection={collection.name} url={source_url}"
+                f"  {rank}. {score_str} doc_id={result['doc_id']} chunk={result['chunk_id']} "
+                f"collection={result['collection']} url={result['source_url']}"
             )
             print(f"      {preview}")
 
