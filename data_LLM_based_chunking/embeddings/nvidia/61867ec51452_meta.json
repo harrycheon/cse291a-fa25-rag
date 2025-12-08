@@ -1,0 +1,14 @@
+{
+  "doc_id": "61867ec51452",
+  "source_url": "/Users/jasonlee/Desktop/cse stuff/cse291/cse291a-fa25-rag/localdocs/nvidia/044495a2-4486-4182-82f0-4e985267a4c6.pdf",
+  "content_type": "application/pdf",
+  "is_pdf": true,
+  "model_id": "amazon.titan-embed-text-v2:0",
+  "model_revision": "0",
+  "normalize": true,
+  "dim": 1024,
+  "chunks": 1,
+  "chunk_size": 256,
+  "chunk_overlap": 50,
+  "created_at": "2025-12-08T03:42:37.169954"
+}
