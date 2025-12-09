@@ -109,8 +109,6 @@ python scripts/generate_embeddings.py --file-dir /path/to/downloaded/files --out
 
 ## Performance Improvements
 
-See [IMPROVEMENTS.md](IMPROVEMENTS.md) for detailed strategies to improve accuracy and retrieval speed.
-
 ### Run Comprehensive Evaluation
 
 Compare baseline vs improved methods with timing:
@@ -153,8 +151,6 @@ python scripts/compare_baseline_vs_improved.py \
 
 **Note**: Requires `GROQ_API_KEY` environment variable for LLM-based relevance scoring.
 
-See [EVALUATION_GUIDE.md](EVALUATION_GUIDE.md) for detailed evaluation instructions.
-
 ### Quick Start with Improvements
 
 **Faster queries with caching:**
@@ -177,5 +173,4 @@ python scripts/query_faiss_improved.py --dir results --query "your question" --e
 **Performance results:**
 - Overall: 1.5x faster, +3.3% F1 score improvement
 - Latency consistency: 21x better (std dev: 895.9ms → 42.0ms)
-- See `EVALUATION_RESULTS_SUMMARY.md` for detailed results
 
