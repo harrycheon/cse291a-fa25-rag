@@ -179,4 +179,3 @@ python scripts/query_faiss_improved.py --dir results --query "your question" --e
 - Latency consistency: 21x better (std dev: 895.9ms → 42.0ms)
 - See `EVALUATION_RESULTS_SUMMARY.md` for detailed results
 
-See `IMPROVEMENTS.md` for full details and implementation guide.
