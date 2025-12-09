@@ -159,8 +159,6 @@ See [EVALUATION_GUIDE.md](EVALUATION_GUIDE.md) for detailed evaluation instructi
 
 **Faster queries with caching:**
 ```bash
-# First query: ~200ms (API call)
-# Subsequent queries: ~1-5ms (cache hit)
 python scripts/query_faiss_improved.py --dir results --query "your question" --show-cache-stats
 ```
 
